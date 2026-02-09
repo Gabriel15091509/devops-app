@@ -2,10 +2,9 @@ pipeline {
     agent any
 
     environment {
-        // Nomme ici ton credentials ID créé dans Jenkins pour Docker Hub
-        DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
-        IMAGE_NAME = 'gabriellova/devops-app'
-        KUBE_CONFIG_CREDENTIALS = 'kubeconfig-credentials' // Credentials contenant le fichier kubeconfig
+        IMAGE_NAME = "gabriellova/devops-app"
+        DOCKERHUB_CREDENTIALS = "dockerhub-credentials"
+        KUBECONFIG = "C:\\ProgramData\\Jenkins\\.kube\\config"
     }
 
     stages {
@@ -16,63 +15,65 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build Docker Image') {
             steps {
-                sh 'npm install'
+                dir('devops-app') {
+                    bat 'docker build -t %IMAGE_NAME%:latest .'
+                }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Login') {
             steps {
-                script {
-                    docker.build("${IMAGE_NAME}:latest")
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: DOCKERHUB_CREDENTIALS,
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    bat '''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    '''
                 }
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS,
-                                                      usernameVariable: 'DOCKER_USER',
-                                                      passwordVariable: 'DOCKER_PASS')]) {
-                        sh """
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                            docker push ${IMAGE_NAME}:latest
-                        """
-                    }
-                }
+                bat 'docker push %IMAGE_NAME%:latest'
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    withCredentials([file(credentialsId: KUBE_CONFIG_CREDENTIALS, variable: 'KUBECONFIG_FILE')]) {
-                        sh 'mkdir -p $HOME/.kube'
-                        sh 'cp $KUBECONFIG_FILE $HOME/.kube/config'
-                        sh 'kubectl apply -f deployment.yaml'
-                        sh 'kubectl apply -f service.yaml'
-                    }
+                dir('devops-app') {
+                    bat '''
+                    kubectl apply -f deployment.yaml
+                    kubectl apply -f service.yaml
+                    '''
                 }
             }
         }
 
         stage('Get App URL') {
             steps {
-                script {
-                    sh 'minikube service devops-app-service --url'
-                }
+                bat '''
+                echo ==============================
+                echo URL DE L'APPLICATION :
+                minikube service devops-app-service --url
+                echo ==============================
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline terminé avec succès !"
+            echo "✅ CI/CD COMPLET : Docker + Kubernetes OK"
         }
         failure {
-            echo "❌ Pipeline échoué."
+            echo "❌ Pipeline échoué — vérifie les logs"
         }
     }
 }
