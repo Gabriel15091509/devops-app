@@ -2,7 +2,9 @@ pipeline {
     agent any
 
     environment {
+        DOCKERHUB_USERNAME = "gabriellova"
         IMAGE_NAME = "devops-app"
+        FULL_IMAGE_NAME = "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest"
         DOCKERHUB_CRED = "dockerhub-credentials"
         KUBECONFIG = "C:\\ProgramData\\Jenkins\\.kube\\config"
     }
@@ -18,16 +20,28 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 dir('devops-app') {
-                    bat 'docker build -t %IMAGE_NAME%:latest .'
+                    bat "docker build -t %FULL_IMAGE_NAME% ."
                 }
             }
         }
 
-       
+        stage('Docker Login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: env.DOCKERHUB_CRED,
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    bat '''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    '''
+                }
+            }
+        }
 
         stage('Push Docker Image') {
             steps {
-                bat 'docker push %IMAGE_NAME%:latest'
+                bat "docker push %FULL_IMAGE_NAME%"
             }
         }
 
@@ -56,10 +70,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ CI/CD COMPLET : Docker + Kubernetes OK"
+            echo "✅ CI/CD COMPLET : DockerHub + Kubernetes OK 🚀"
         }
         failure {
-            echo "❌ Pipeline échoué — vérifie les logs"
+            echo "❌ Pipeline échoué — vérifie les logs Jenkins"
         }
     }
 }
