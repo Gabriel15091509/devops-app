@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "gabriellova/devops-app"
+        IMAGE_NAME = "devops-app"
         DOCKERHUB_CREDENTIALS = "dockerhub-credentials"
         KUBECONFIG = "C:\\ProgramData\\Jenkins\\.kube\\config"
     }
