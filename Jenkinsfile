@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "devops-app"
-        DOCKERHUB_CREDENTIALS = "dockerhub-credentials"
+        DOCKERHUB_CRED = "dockerhub-credentials"
         KUBECONFIG = "C:\\ProgramData\\Jenkins\\.kube\\config"
     }
 
